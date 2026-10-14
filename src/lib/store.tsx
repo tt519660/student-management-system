@@ -17,6 +17,7 @@ import type {
   Student,
   StudentStatus,
   Teacher,
+  Term,
   User,
 } from '../types'
 import { canDrop, canEnroll } from './enrollment'
@@ -57,7 +58,11 @@ interface StoreValue {
   setStudentStatus: (id: string, status: StudentStatus) => void
   saveTeacher: (item: Omit<Teacher, 'id'> & { id?: string }) => void
   saveCourse: (item: Omit<Course, 'id'> & { id?: string }) => void
+  removeCourse: (id: string) => void
   saveOffering: (item: Omit<Offering, 'id'> & { id?: string }) => void
+  removeOffering: (id: string) => void
+  saveTerm: (item: Omit<Term, 'id'> & { id?: string }) => void
+  removeTerm: (id: string) => void
   enroll: (studentId: string, offeringId: string, source: EnrollmentSource) => string | null
   drop: (studentId: string, offeringId: string, asAdmin: boolean) => string | null
 }
@@ -212,6 +217,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       persist(next)
     },
+    removeCourse: (id) => {
+      const next = structuredClone(db)
+      next.courses = next.courses.filter((row) => row.id !== id)
+      next.offerings = next.offerings.filter((row) => row.courseId !== id)
+      persist(next)
+    },
     saveOffering: (item) => {
       const next = structuredClone(db)
       if (item.id) {
@@ -219,6 +230,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } else {
         next.offerings.push({ ...item, id: uid() })
       }
+      persist(next)
+    },
+    removeOffering: (id) => {
+      const next = structuredClone(db)
+      next.offerings = next.offerings.filter((row) => row.id !== id)
+      next.enrollments = next.enrollments.filter((row) => row.offeringId !== id)
+      persist(next)
+    },
+    saveTerm: (item) => {
+      const next = structuredClone(db)
+      if (item.id) {
+        next.terms = next.terms.map((row) => (row.id === item.id ? { ...row, ...item, id: row.id } : row))
+      } else {
+        next.terms.push({ ...item, id: uid() })
+      }
+      persist(next)
+    },
+    removeTerm: (id) => {
+      const next = structuredClone(db)
+      next.terms = next.terms.filter((row) => row.id !== id)
+      next.offerings = next.offerings.filter((row) => row.termId !== id)
       persist(next)
     },
     enroll: (studentId, offeringId, source) => {

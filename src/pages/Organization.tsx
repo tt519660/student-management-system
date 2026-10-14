@@ -8,6 +8,7 @@ export function OrganizationPage() {
   const { db, saveCollege, saveMajor, saveClass, removeCollege, removeMajor, removeClass } = useStore()
   const [tab, setTab] = useState<Tab>('colleges')
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   return (
     <div>
@@ -15,7 +16,16 @@ export function OrganizationPage() {
         kicker="Structure"
         title="组织架构"
         subtitle="学院、专业与行政班是学籍的骨架。"
-        actions={<Button onClick={() => setOpen(true)}>新建</Button>}
+        actions={
+          <Button
+            onClick={() => {
+              setEditingId(null)
+              setOpen(true)
+            }}
+          >
+            新建
+          </Button>
+        }
       />
       <div className="mb-5 flex gap-2">
         {(
@@ -43,9 +53,21 @@ export function OrganizationPage() {
               item.code,
               item.name,
               String(db.majors.filter((major) => major.collegeId === item.id).length),
-              <button className="text-xs text-muted" onClick={() => removeCollege(item.id)} type="button">
-                删除
-              </button>,
+              <div className="flex gap-2">
+                <button
+                  className="text-xs text-accent"
+                  onClick={() => {
+                    setEditingId(item.id)
+                    setOpen(true)
+                  }}
+                  type="button"
+                >
+                  编辑
+                </button>
+                <button className="text-xs text-muted" onClick={() => removeCollege(item.id)} type="button">
+                  删除
+                </button>
+              </div>,
             ])}
           />
         ) : null}
@@ -56,9 +78,21 @@ export function OrganizationPage() {
               item.code,
               item.name,
               db.colleges.find((college) => college.id === item.collegeId)?.name ?? '—',
-              <button className="text-xs text-muted" onClick={() => removeMajor(item.id)} type="button">
-                删除
-              </button>,
+              <div className="flex gap-2">
+                <button
+                  className="text-xs text-accent"
+                  onClick={() => {
+                    setEditingId(item.id)
+                    setOpen(true)
+                  }}
+                  type="button"
+                >
+                  编辑
+                </button>
+                <button className="text-xs text-muted" onClick={() => removeMajor(item.id)} type="button">
+                  删除
+                </button>
+              </div>,
             ])}
           />
         ) : null}
@@ -70,9 +104,21 @@ export function OrganizationPage() {
               String(item.year),
               db.majors.find((major) => major.id === item.majorId)?.name ?? '—',
               String(db.students.filter((student) => student.classId === item.id).length),
-              <button className="text-xs text-muted" onClick={() => removeClass(item.id)} type="button">
-                删除
-              </button>,
+              <div className="flex gap-2">
+                <button
+                  className="text-xs text-accent"
+                  onClick={() => {
+                    setEditingId(item.id)
+                    setOpen(true)
+                  }}
+                  type="button"
+                >
+                  编辑
+                </button>
+                <button className="text-xs text-muted" onClick={() => removeClass(item.id)} type="button">
+                  删除
+                </button>
+              </div>,
             ])}
           />
         ) : null}
@@ -80,14 +126,38 @@ export function OrganizationPage() {
 
       {open ? (
         <Modal
-          title={tab === 'colleges' ? '新建学院' : tab === 'majors' ? '新建专业' : '新建行政班'}
-          onClose={() => setOpen(false)}
+          title={
+            editingId
+              ? tab === 'colleges'
+                ? '编辑学院'
+                : tab === 'majors'
+                  ? '编辑专业'
+                  : '编辑行政班'
+              : tab === 'colleges'
+                ? '新建学院'
+                : tab === 'majors'
+                  ? '新建专业'
+                  : '新建行政班'
+          }
+          onClose={() => {
+            setOpen(false)
+            setEditingId(null)
+          }}
         >
           {tab === 'colleges' ? (
             <OrgForm
+              initial={
+                editingId
+                  ? (() => {
+                      const item = db.colleges.find((row) => row.id === editingId)
+                      return item ? { code: item.code, name: item.name } : undefined
+                    })()
+                  : undefined
+              }
               onSubmit={(form) => {
-                saveCollege({ code: form.code, name: form.name })
+                saveCollege({ id: editingId ?? undefined, code: form.code, name: form.name })
                 setOpen(false)
+                setEditingId(null)
               }}
             />
           ) : null}
@@ -98,21 +168,39 @@ export function OrganizationPage() {
                 event.preventDefault()
                 const data = new FormData(event.currentTarget)
                 saveMajor({
+                  id: editingId ?? undefined,
                   code: String(data.get('code')),
                   name: String(data.get('name')),
                   collegeId: String(data.get('collegeId')),
                 })
                 setOpen(false)
+                setEditingId(null)
               }}
             >
               <Field label="专业代码">
-                <Input name="code" required />
+                <Input
+                  name="code"
+                  required
+                  defaultValue={editingId ? db.majors.find((row) => row.id === editingId)?.code : undefined}
+                />
               </Field>
               <Field label="专业名称">
-                <Input name="name" required />
+                <Input
+                  name="name"
+                  required
+                  defaultValue={editingId ? db.majors.find((row) => row.id === editingId)?.name : undefined}
+                />
               </Field>
               <Field label="所属学院">
-                <Select name="collegeId" required>
+                <Select
+                  name="collegeId"
+                  required
+                  defaultValue={
+                    editingId
+                      ? db.majors.find((row) => row.id === editingId)?.collegeId
+                      : db.colleges[0]?.id
+                  }
+                >
                   {db.colleges.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -130,21 +218,43 @@ export function OrganizationPage() {
                 event.preventDefault()
                 const data = new FormData(event.currentTarget)
                 saveClass({
+                  id: editingId ?? undefined,
                   name: String(data.get('name')),
                   year: Number(data.get('year')),
                   majorId: String(data.get('majorId')),
                 })
                 setOpen(false)
+                setEditingId(null)
               }}
             >
               <Field label="班级名称">
-                <Input name="name" placeholder="软工2501" required />
+                <Input
+                  name="name"
+                  placeholder="软工2501"
+                  required
+                  defaultValue={editingId ? db.classes.find((row) => row.id === editingId)?.name : undefined}
+                />
               </Field>
               <Field label="年级">
-                <Input name="year" type="number" defaultValue={2026} required />
+                <Input
+                  name="year"
+                  type="number"
+                  defaultValue={
+                    editingId ? db.classes.find((row) => row.id === editingId)?.year : 2026
+                  }
+                  required
+                />
               </Field>
               <Field label="专业">
-                <Select name="majorId" required>
+                <Select
+                  name="majorId"
+                  required
+                  defaultValue={
+                    editingId
+                      ? db.classes.find((row) => row.id === editingId)?.majorId
+                      : db.majors[0]?.id
+                  }
+                >
                   {db.majors.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -165,7 +275,13 @@ export function OrganizationPage() {
   )
 }
 
-function OrgForm({ onSubmit }: { onSubmit: (item: { code: string; name: string }) => void }) {
+function OrgForm({
+  initial,
+  onSubmit,
+}: {
+  initial?: { code: string; name: string }
+  onSubmit: (item: { code: string; name: string }) => void
+}) {
   return (
     <form
       className="grid gap-4"
@@ -176,10 +292,10 @@ function OrgForm({ onSubmit }: { onSubmit: (item: { code: string; name: string }
       }}
     >
       <Field label="代码">
-        <Input name="code" required />
+        <Input name="code" defaultValue={initial?.code} required />
       </Field>
       <Field label="名称">
-        <Input name="name" required />
+        <Input name="name" defaultValue={initial?.name} required />
       </Field>
       <Button type="submit">保存</Button>
     </form>

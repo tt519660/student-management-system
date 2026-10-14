@@ -12,6 +12,7 @@ import { SchedulePage } from './pages/Schedule'
 import { SelectCoursesPage } from './pages/SelectCourses'
 import { StudentsPage } from './pages/Students'
 import { TeachersPage } from './pages/Teachers'
+import { TermsPage } from './pages/Terms'
 import type { Role } from './types'
 
 function Guard({ roles }: { roles?: Role[] }) {
@@ -35,6 +36,7 @@ export default function App() {
                 <Route path="students" element={<StudentsPage />} />
                 <Route path="teachers" element={<TeachersPage />} />
                 <Route path="courses" element={<CoursesPage />} />
+                <Route path="terms" element={<TermsPage />} />
                 <Route path="reports" element={<ReportsPage />} />
               </Route>
               <Route element={<Guard roles={['admin', 'teacher']} />}>

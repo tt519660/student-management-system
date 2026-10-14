@@ -6,7 +6,7 @@ import type { Offering } from '../types'
 import { periodLabel, weekdayLabel } from '../lib/utils'
 
 export function OfferingsPage() {
-  const { db, user, saveOffering, enroll, drop } = useStore()
+  const { db, user, saveOffering, removeOffering, enroll, drop } = useStore()
   const term = currentTerm(db)
   const [editing, setEditing] = useState<Partial<Offering> | null>(null)
   const [rosterId, setRosterId] = useState<string | null>(null)
@@ -66,9 +66,20 @@ export function OfferingsPage() {
                   <Badge tone="warn">余 {left}</Badge>
                 ) : null}
               </span>,
-              <button className="text-xs text-accent" onClick={() => setRosterId(item.id)} type="button">
-                名单
-              </button>,
+              <div className="flex gap-2">
+                <button className="text-xs text-accent" onClick={() => setRosterId(item.id)} type="button">
+                  名单
+                </button>
+                {user?.role === 'admin' ? (
+                  <button
+                    className="text-xs text-warn"
+                    onClick={() => removeOffering(item.id)}
+                    type="button"
+                  >
+                    删除
+                  </button>
+                ) : null}
+              </div>,
             ]
           })}
         />
@@ -155,27 +166,30 @@ export function OfferingsPage() {
           }}
         >
           <Table
-            columns={['学号', '姓名', '来源', '']}
+            columns={user?.role === 'admin' ? ['学号', '姓名', '来源', ''] : ['学号', '姓名', '选课时间']}
             empty="还没有学生"
             rows={db.enrollments
               .filter((item) => item.offeringId === roster.id)
               .map((item) => {
                 const student = db.students.find((row) => row.id === item.studentId)
-                return [
-                  student?.studentNo ?? '',
-                  student?.name ?? '',
-                  item.source === 'admin' ? '教务加选' : '自选',
-                  user?.role === 'admin' ? (
+                if (user?.role === 'admin') {
+                  return [
+                    student?.studentNo ?? '',
+                    student?.name ?? '',
+                    item.source === 'admin' ? '教务加选' : '自选',
                     <button
                       className="text-xs text-warn"
                       onClick={() => drop(item.studentId, roster.id, true)}
                       type="button"
                     >
                       退选
-                    </button>
-                  ) : (
-                    ''
-                  ),
+                    </button>,
+                  ]
+                }
+                return [
+                  student?.studentNo ?? '',
+                  student?.name ?? '',
+                  new Date(item.createdAt).toLocaleDateString('zh-CN'),
                 ]
               })}
           />

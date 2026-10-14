@@ -4,7 +4,7 @@ import { useStore } from '../lib/store'
 import type { Course } from '../types'
 
 export function CoursesPage() {
-  const { db, saveCourse } = useStore()
+  const { db, saveCourse, removeCourse } = useStore()
   const [editing, setEditing] = useState<Partial<Course> | null>(null)
 
   return (
@@ -24,9 +24,14 @@ export function CoursesPage() {
             String(item.credits),
             String(item.hours),
             db.colleges.find((college) => college.id === item.collegeId)?.name ?? '—',
-            <button className="text-xs text-accent" onClick={() => setEditing(item)} type="button">
-              编辑
-            </button>,
+            <div className="flex gap-2">
+              <button className="text-xs text-accent" onClick={() => setEditing(item)} type="button">
+                编辑
+              </button>
+              <button className="text-xs text-warn" onClick={() => removeCourse(item.id)} type="button">
+                删除
+              </button>
+            </div>,
           ])}
         />
       </Card>
