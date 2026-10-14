@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table } from '../components/ui'
+import { Badge, Button, Card, ConfirmModal, Field, Input, Modal, PageHeader, Select, Table } from '../components/ui'
 import { currentTerm, enrolledCount, remainingSeats } from '../lib/enrollment'
 import { useStore } from '../lib/store'
 import type { Offering } from '../types'
@@ -12,6 +12,7 @@ export function OfferingsPage() {
   const [rosterId, setRosterId] = useState<string | null>(null)
   const [forceStudent, setForceStudent] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<Offering | null>(null)
 
   const list =
     user?.role === 'teacher'
@@ -73,7 +74,7 @@ export function OfferingsPage() {
                 {user?.role === 'admin' ? (
                   <button
                     className="text-xs text-warn"
-                    onClick={() => removeOffering(item.id)}
+                    onClick={() => setDeleting(item)}
                     type="button"
                   >
                     删除
@@ -219,6 +220,18 @@ export function OfferingsPage() {
           ) : null}
           {message ? <p className="mt-3 text-sm text-muted">{message}</p> : null}
         </Modal>
+      ) : null}
+
+      {deleting ? (
+        <ConfirmModal
+          title="确认删除"
+          message={`确定要删除「${db.courses.find((item) => item.id === deleting.courseId)?.name} ${deleting.section}」吗？相关选课记录也将被删除。`}
+          onConfirm={() => {
+            removeOffering(deleting.id)
+            setDeleting(null)
+          }}
+          onCancel={() => setDeleting(null)}
+        />
       ) : null}
     </div>
   )

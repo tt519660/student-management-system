@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   PieChart,
+  ScrollText,
   Users,
   UserSquare2,
 } from 'lucide-react'
@@ -25,6 +26,7 @@ const nav = [
   { to: '/select', label: '选课', icon: BookOpen, roles: ['student'] },
   { to: '/schedule', label: '课表', icon: CalendarDays, roles: ['admin', 'teacher', 'student'] },
   { to: '/reports', label: '统计报表', icon: PieChart, roles: ['admin'] },
+  { to: '/logs', label: '操作日志', icon: ScrollText, roles: ['admin'] },
   { to: '/profile', label: '我的档案', icon: GraduationCap, roles: ['student'] },
 ]
 

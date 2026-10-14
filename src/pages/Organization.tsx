@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table } from '../components/ui'
+import { Badge, Button, Card, ConfirmModal, Field, Input, Modal, PageHeader, Select, Table } from '../components/ui'
 import { useStore } from '../lib/store'
 
 type Tab = 'colleges' | 'majors' | 'classes'
@@ -9,6 +9,7 @@ export function OrganizationPage() {
   const [tab, setTab] = useState<Tab>('colleges')
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<{ type: Tab; id: string; name: string } | null>(null)
 
   return (
     <div>
@@ -64,7 +65,11 @@ export function OrganizationPage() {
                 >
                   编辑
                 </button>
-                <button className="text-xs text-muted" onClick={() => removeCollege(item.id)} type="button">
+                <button
+                  className="text-xs text-muted"
+                  onClick={() => setDeleting({ type: 'colleges', id: item.id, name: item.name })}
+                  type="button"
+                >
                   删除
                 </button>
               </div>,
@@ -89,7 +94,11 @@ export function OrganizationPage() {
                 >
                   编辑
                 </button>
-                <button className="text-xs text-muted" onClick={() => removeMajor(item.id)} type="button">
+                <button
+                  className="text-xs text-muted"
+                  onClick={() => setDeleting({ type: 'majors', id: item.id, name: item.name })}
+                  type="button"
+                >
                   删除
                 </button>
               </div>,
@@ -115,7 +124,11 @@ export function OrganizationPage() {
                 >
                   编辑
                 </button>
-                <button className="text-xs text-muted" onClick={() => removeClass(item.id)} type="button">
+                <button
+                  className="text-xs text-muted"
+                  onClick={() => setDeleting({ type: 'classes', id: item.id, name: item.name })}
+                  type="button"
+                >
                   删除
                 </button>
               </div>,
@@ -269,8 +282,22 @@ export function OrganizationPage() {
       ) : null}
       <p className="mt-4 text-xs text-muted">
         <Badge>提示</Badge>
-        <span className="ml-2">删除组织节点不会级联清理学生，请先调整学籍归属。</span>
+        <span className="ml-2">删除组织节点会级联清理关联数据（专业、班级、学生学籍、课程、开课等）。</span>
       </p>
+
+      {deleting ? (
+        <ConfirmModal
+          title="确认删除"
+          message={`确定要删除「${deleting.name}」吗？此操作不可撤销。`}
+          onConfirm={() => {
+            if (deleting.type === 'colleges') removeCollege(deleting.id)
+            else if (deleting.type === 'majors') removeMajor(deleting.id)
+            else removeClass(deleting.id)
+            setDeleting(null)
+          }}
+          onCancel={() => setDeleting(null)}
+        />
+      ) : null}
     </div>
   )
 }

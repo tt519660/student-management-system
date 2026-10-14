@@ -4,6 +4,7 @@ import { StoreProvider, useStore } from './lib/store'
 import { CoursesPage } from './pages/Courses'
 import { DashboardPage } from './pages/Dashboard'
 import { LoginPage } from './pages/Login'
+import { LogsPage } from './pages/Logs'
 import { OfferingsPage } from './pages/Offerings'
 import { OrganizationPage } from './pages/Organization'
 import { ProfilePage } from './pages/Profile'
@@ -38,6 +39,7 @@ export default function App() {
                 <Route path="courses" element={<CoursesPage />} />
                 <Route path="terms" element={<TermsPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route path="logs" element={<LogsPage />} />
               </Route>
               <Route element={<Guard roles={['admin', 'teacher']} />}>
                 <Route path="offerings" element={<OfferingsPage />} />

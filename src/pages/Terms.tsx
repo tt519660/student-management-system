@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Badge, Button, Card, Field, Input, Modal, PageHeader, Table } from '../components/ui'
+import { Badge, Button, Card, ConfirmModal, Field, Input, Modal, PageHeader, Table } from '../components/ui'
 import { useStore } from '../lib/store'
 import type { Term } from '../types'
 
 export function TermsPage() {
   const { db, saveTerm, removeTerm } = useStore()
   const [editing, setEditing] = useState<Partial<Term> | null>(null)
+  const [deleting, setDeleting] = useState<Term | null>(null)
 
   const toLocalInput = (iso: string) => {
     if (!iso) return ''
@@ -37,7 +38,7 @@ export function TermsPage() {
               <button className="text-xs text-accent" onClick={() => setEditing(item)} type="button">
                 编辑
               </button>
-              <button className="text-xs text-warn" onClick={() => removeTerm(item.id)} type="button">
+              <button className="text-xs text-warn" onClick={() => setDeleting(item)} type="button">
                 删除
               </button>
             </div>,
@@ -100,6 +101,18 @@ export function TermsPage() {
             <Button type="submit">保存</Button>
           </form>
         </Modal>
+      ) : null}
+
+      {deleting ? (
+        <ConfirmModal
+          title="确认删除"
+          message={`确定要删除学期「${deleting.name}」吗？相关开课记录也将被删除。`}
+          onConfirm={() => {
+            removeTerm(deleting.id)
+            setDeleting(null)
+          }}
+          onCancel={() => setDeleting(null)}
+        />
       ) : null}
     </div>
   )

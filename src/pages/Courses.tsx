@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Button, Card, Field, Input, Modal, PageHeader, Select, Table } from '../components/ui'
+import { Button, Card, ConfirmModal, Field, Input, Modal, PageHeader, Select, Table } from '../components/ui'
 import { useStore } from '../lib/store'
 import type { Course } from '../types'
 
 export function CoursesPage() {
   const { db, saveCourse, removeCourse } = useStore()
   const [editing, setEditing] = useState<Partial<Course> | null>(null)
+  const [deleting, setDeleting] = useState<Course | null>(null)
 
   return (
     <div>
@@ -28,7 +29,7 @@ export function CoursesPage() {
               <button className="text-xs text-accent" onClick={() => setEditing(item)} type="button">
                 编辑
               </button>
-              <button className="text-xs text-warn" onClick={() => removeCourse(item.id)} type="button">
+              <button className="text-xs text-warn" onClick={() => setDeleting(item)} type="button">
                 删除
               </button>
             </div>,
@@ -79,6 +80,18 @@ export function CoursesPage() {
             <Button type="submit">保存</Button>
           </form>
         </Modal>
+      ) : null}
+
+      {deleting ? (
+        <ConfirmModal
+          title="确认删除"
+          message={`确定要删除课程「${deleting.name}」吗？相关开课记录也将被删除。`}
+          onConfirm={() => {
+            removeCourse(deleting.id)
+            setDeleting(null)
+          }}
+          onCancel={() => setDeleting(null)}
+        />
       ) : null}
     </div>
   )

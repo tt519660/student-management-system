@@ -128,7 +128,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     removeCollege: (id) => {
       const next = structuredClone(db)
+      const college = next.colleges.find((row) => row.id === id)
+      if (!college) return
+      // 级联删除关联的专业
+      const majorIds = next.majors.filter((row) => row.collegeId === id).map((row) => row.id)
+      // 级联删除关联的班级
+      const classIds = next.classes.filter((row) => majorIds.includes(row.majorId)).map((row) => row.id)
+      // 级联删除关联的课程
+      const courseIds = next.courses.filter((row) => row.collegeId === id).map((row) => row.id)
+      // 级联删除关联的开课
+      const offeringIds = next.offerings.filter((row) => courseIds.includes(row.courseId)).map((row) => row.id)
+
       next.colleges = next.colleges.filter((row) => row.id !== id)
+      next.majors = next.majors.filter((row) => row.collegeId !== id)
+      next.classes = next.classes.filter((row) => !majorIds.includes(row.majorId))
+      next.students = next.students.filter(
+        (row) => row.collegeId !== id && !classIds.includes(row.classId),
+      )
+      next.teachers = next.teachers.filter((row) => row.collegeId !== id)
+      next.courses = next.courses.filter((row) => row.collegeId !== id)
+      next.offerings = next.offerings.filter((row) => !courseIds.includes(row.courseId))
+      next.enrollments = next.enrollments.filter((row) => !offeringIds.includes(row.offeringId))
+
+      log(next, '删除学院', `${college.name}（含关联数据）`)
       persist(next)
     },
     saveMajor: (item) => {
@@ -142,7 +164,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     removeMajor: (id) => {
       const next = structuredClone(db)
+      const major = next.majors.find((row) => row.id === id)
+      if (!major) return
+      // 级联删除关联的班级
+      const classIds = next.classes.filter((row) => row.majorId === id).map((row) => row.id)
+
       next.majors = next.majors.filter((row) => row.id !== id)
+      next.classes = next.classes.filter((row) => row.majorId !== id)
+      next.students = next.students.filter((row) => row.majorId !== id && !classIds.includes(row.classId))
+
+      log(next, '删除专业', `${major.name}（含关联班级和学生）`)
       persist(next)
     },
     saveClass: (item) => {
@@ -156,7 +187,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     removeClass: (id) => {
       const next = structuredClone(db)
+      const cls = next.classes.find((row) => row.id === id)
+      if (!cls) return
+
       next.classes = next.classes.filter((row) => row.id !== id)
+      // 级联删除关联的学生学籍
+      next.students = next.students.filter((row) => row.classId !== id)
+
+      log(next, '删除行政班', `${cls.name}（含关联学生学籍）`)
       persist(next)
     },
     saveStudent: (item) => {
@@ -219,8 +257,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     removeCourse: (id) => {
       const next = structuredClone(db)
+      const course = next.courses.find((row) => row.id === id)
+      if (!course) return
+      // 级联删除关联的开课
+      const offeringIds = next.offerings.filter((row) => row.courseId === id).map((row) => row.id)
+
       next.courses = next.courses.filter((row) => row.id !== id)
       next.offerings = next.offerings.filter((row) => row.courseId !== id)
+      next.enrollments = next.enrollments.filter((row) => !offeringIds.includes(row.offeringId))
+
+      log(next, '删除课程', `${course.name}（含关联开课）`)
       persist(next)
     },
     saveOffering: (item) => {
@@ -234,12 +280,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     removeOffering: (id) => {
       const next = structuredClone(db)
+      const offering = next.offerings.find((row) => row.id === id)
+      if (!offering) return
+      const course = next.courses.find((row) => row.id === offering.courseId)
+
       next.offerings = next.offerings.filter((row) => row.id !== id)
       next.enrollments = next.enrollments.filter((row) => row.offeringId !== id)
+
+      log(next, '删除开课', `${course?.name ?? ''} ${offering.section}（含选课记录）`)
       persist(next)
     },
     saveTerm: (item) => {
       const next = structuredClone(db)
+      // 如果设为当前学期，将其他学期设为非当前
+      if (item.isCurrent) {
+        next.terms = next.terms.map((row) => (row.id !== item.id ? { ...row, isCurrent: false } : row))
+      }
       if (item.id) {
         next.terms = next.terms.map((row) => (row.id === item.id ? { ...row, ...item, id: row.id } : row))
       } else {
@@ -249,8 +305,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     removeTerm: (id) => {
       const next = structuredClone(db)
+      const term = next.terms.find((row) => row.id === id)
+      if (!term) return
+      // 级联删除关联的开课
+      const offeringIds = next.offerings.filter((row) => row.termId === id).map((row) => row.id)
+
       next.terms = next.terms.filter((row) => row.id !== id)
       next.offerings = next.offerings.filter((row) => row.termId !== id)
+      next.enrollments = next.enrollments.filter((row) => !offeringIds.includes(row.offeringId))
+
+      log(next, '删除学期', `${term.name}（含关联开课）`)
       persist(next)
     },
     enroll: (studentId, offeringId, source) => {

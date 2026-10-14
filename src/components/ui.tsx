@@ -125,6 +125,38 @@ export function Modal({
   )
 }
 
+export function ConfirmModal({
+  title,
+  message,
+  onConfirm,
+  onCancel,
+}: {
+  title: string
+  message: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/30 p-4" onClick={onCancel}>
+      <div
+        className="w-full max-w-sm rounded-3xl border border-line bg-card p-6 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 className="font-display text-xl">{title}</h2>
+        <p className="mt-3 text-sm text-muted">{message}</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="line" onClick={onCancel}>
+            取消
+          </Button>
+          <Button variant="danger" onClick={onConfirm}>
+            确认删除
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Table({
   columns,
   rows,
