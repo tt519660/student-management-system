@@ -6,9 +6,11 @@
 
 - 角色登录：教务管理员、教师、学生
 - 学生信息与学籍管理
-- 院系、专业与组织架构管理
-- 课程与开课管理
+- 院系、专业与组织架构管理（支持新增、编辑、删除）
+- 学期管理：设置选课时间窗口与当前学期
+- 课程与开课管理（支持新增、编辑、删除）
 - 学生选课与课程安排
+- 教师可查看授课学生名单
 - 教师课表、学生课表与个人资料
 - 数据看板与报表展示
 - 本地演示数据初始化与重置
@@ -46,11 +48,11 @@ npm run lint
 
 所有演示账号的密码均为 `123456`。
 
-| 角色 | 账号 |
-| --- | --- |
-| 教务管理员 | `admin` |
-| 教师 | `T10001` |
-| 学生 | `2024010101` |
+| 角色 | 账号 | 可访问页面 |
+| --- | --- | --- |
+| 教务管理员 | `admin` | 全部功能 |
+| 教师 | `T10001` | 总览、开课管理、课表 |
+| 学生 | `2024010101` | 总览、选课、课表、个人档案 |
 
 ## 代码示例
 
@@ -66,9 +68,9 @@ npm run dev
 import { useStore } from './lib/store';
 
 export function UserGreeting() {
-  const { currentUser } = useStore();
+  const { user } = useStore();
 
-  return <p>你好，{currentUser?.name ?? '访客'}</p>;
+  return <p>你好，{user?.displayName ?? '访客'}</p>;
 }
 ```
 
@@ -82,9 +84,22 @@ student-management-system/
 │   ├── components/       # 通用组件与布局
 │   ├── lib/              # 状态管理、种子数据与业务逻辑
 │   ├── pages/            # 页面组件
+│   │   ├── Dashboard.tsx # 总览
+│   │   ├── Login.tsx     # 登录
+│   │   ├── Organization.tsx # 组织架构
+│   │   ├── Students.tsx  # 学生学籍
+│   │   ├── Teachers.tsx  # 教师档案
+│   │   ├── Courses.tsx   # 课程库
+│   │   ├── Terms.tsx     # 学期管理
+│   │   ├── Offerings.tsx # 开课管理
+│   │   ├── SelectCourses.tsx # 选课
+│   │   ├── Schedule.tsx  # 课表
+│   │   ├── Reports.tsx   # 统计报表
+│   │   └── Profile.tsx   # 我的档案
 │   ├── App.tsx           # 应用路由与页面入口
 │   ├── App.css           # 应用样式
 │   ├── index.css         # 全局样式
+│   ├── types.ts          # TypeScript 类型定义
 │   └── main.tsx          # 应用启动入口
 ├── index.html
 ├── package.json
