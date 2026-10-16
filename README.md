@@ -17,9 +17,9 @@
 
 ## 项目介绍动画
 
-<video src="https://github.com/tt519660/student-management-system/releases/download/demo-assets/StudentIntro.mp4" width="960" controls autoplay muted loop playsinline></video>
+![项目介绍动画](promo-video/preview.gif)
 
-`promo-video/` 是基于 [Remotion](https://remotion.dev)（React 编程式视频）制作的项目介绍展示动画，规格为 1920×1080、30fps、约 19 秒，包含开场、技术栈、核心功能、角色介绍与结尾 5 个场景。视频文件托管在 [Release](https://github.com/tt519660/student-management-system/releases/tag/demo-assets) 中，不占用仓库体积。
+`promo-video/` 是基于 [Remotion](https://remotion.dev)（React 编程式视频）制作的项目介绍展示动画，规格为 1920×1080、30fps、约 19 秒，包含开场、技术栈、核心功能、角色介绍与结尾 5 个场景。[高清 MP4 版本](https://github.com/tt519660/student-management-system/releases/tag/demo-assets)托管在 Release 中，不占用仓库体积。
 
 ```bash
 cd promo-video
