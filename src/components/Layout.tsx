@@ -14,6 +14,7 @@ import {
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { roleLabel, useStore } from '../lib/store'
 import { currentTerm, enrollmentOpen } from '../lib/enrollment'
+import { AiAssistant } from './AiAssistant'
 
 const nav = [
   { to: '/', label: '总览', icon: LayoutDashboard, roles: ['admin', 'teacher', 'student'] },
@@ -96,6 +97,8 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+
+      <AiAssistant />
     </div>
   )
 }

@@ -1,6 +1,8 @@
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -21,11 +23,13 @@ import type {
   User,
 } from '../types'
 import { canDrop, canEnroll } from './enrollment'
+import { fetchAllData } from './api'
 import { createSeed } from './seed'
 import { nowIso, uid } from './utils'
 
 const STORAGE_KEY = 'asms-db-v1'
 const SESSION_KEY = 'asms-user'
+const REMOTE_KEY = 'asms-db-remote' // 标记数据来自后端
 
 function loadDb(): Database {
   try {
@@ -45,9 +49,11 @@ function loadSession(users: User[]): User | null {
 interface StoreValue {
   db: Database
   user: User | null
+  remoteLoaded: boolean
   login: (username: string, password: string) => string | null
   logout: () => void
   resetDemo: () => void
+  reloadRemote: () => Promise<void>
   saveCollege: (item: Omit<College, 'id'> & { id?: string }) => void
   removeCollege: (id: string) => void
   saveMajor: (item: Omit<Major, 'id'> & { id?: string }) => void
@@ -76,6 +82,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return data
   })
   const [user, setUser] = useState<User | null>(() => loadSession(db.users))
+  const [remoteLoaded, setRemoteLoaded] = useState(false)
+
+  // 从后端加载数据
+  const loadRemoteData = useCallback(async () => {
+    const remote = await fetchAllData()
+    if (remote && typeof remote === 'object') {
+      // 合并后端数据到 Database 结构
+      const remoteDb = remote as unknown as Database
+      setDb(remoteDb)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteDb))
+      localStorage.setItem(REMOTE_KEY, '1')
+      console.log('已从后端加载数据')
+    } else {
+      console.warn('后端不可用，使用本地数据')
+    }
+    setRemoteLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    loadRemoteData()
+  }, [loadRemoteData])
 
   const persist = (next: Database) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
@@ -98,6 +125,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreValue>(() => ({
     db,
     user,
+    remoteLoaded,
+    reloadRemote: loadRemoteData,
     login: (username, password) => {
       const found = db.users.find(
         (item) => item.username === username.trim() && item.password === password,
@@ -355,7 +384,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       persist(next)
       return null
     },
-  }), [db, user])
+  }), [db, user, remoteLoaded, loadRemoteData])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }

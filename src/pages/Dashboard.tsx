@@ -1,13 +1,19 @@
 import { Link } from 'react-router-dom'
-import { Card, PageHeader } from '../components/ui'
+import { Badge, Card, PageHeader } from '../components/ui'
 import { currentTerm, enrolledCount, enrollmentOpen, remainingSeats, studentOfferings } from '../lib/enrollment'
 import { useStore } from '../lib/store'
 import { periodLabel, weekdayLabel } from '../lib/utils'
 
 export function DashboardPage() {
-  const { db, user } = useStore()
+  const { db, user, remoteLoaded } = useStore()
   const term = currentTerm(db)
   const activeStudents = db.students.filter((item) => item.status === '在读').length
+
+  const dataBadge = (
+    <Badge tone={remoteLoaded ? 'green' : 'warn'}>
+      {remoteLoaded ? '后端数据' : '本地数据'}
+    </Badge>
+  )
 
   if (user?.role === 'student') {
     const mine = studentOfferings(db, user.refId ?? '')
@@ -17,7 +23,12 @@ export function DashboardPage() {
     }, 0)
     return (
       <div>
-        <PageHeader kicker="Overview" title={`你好，${user.displayName}`} subtitle={term?.name} />
+        <PageHeader
+          kicker="Overview"
+          title={`你好，${user.displayName}`}
+          subtitle={term?.name}
+          actions={dataBadge}
+        />
         <div className="grid gap-4 md:grid-cols-3">
           <Stat label="已选课程" value={String(mine.length)} />
           <Stat label="已选学分" value={String(credits)} />
@@ -56,7 +67,12 @@ export function DashboardPage() {
     const mine = db.offerings.filter((item) => item.teacherId === user.refId)
     return (
       <div>
-        <PageHeader kicker="Overview" title={`你好，${user.displayName}老师`} subtitle="本学期授课一览" />
+        <PageHeader
+          kicker="Overview"
+          title={`你好，${user.displayName}老师`}
+          subtitle="本学期授课一览"
+          actions={dataBadge}
+        />
         <div className="grid gap-4 md:grid-cols-3">
           <Stat label="授课班" value={String(mine.length)} />
           <Stat label="学生人次" value={String(mine.reduce((sum, item) => sum + enrolledCount(db, item.id), 0))} />
@@ -88,7 +104,12 @@ export function DashboardPage() {
 
   return (
     <div>
-      <PageHeader kicker="Overview" title="学期秩序" subtitle="学籍、开课与选课的当前截面。" />
+      <PageHeader
+        kicker="Overview"
+        title="学期秩序"
+        subtitle="学籍、开课与选课的当前截面。"
+        actions={dataBadge}
+      />
       <div className="grid gap-4 md:grid-cols-4">
         <Stat label="在读学生" value={String(activeStudents)} />
         <Stat label="教师" value={String(db.teachers.length)} />

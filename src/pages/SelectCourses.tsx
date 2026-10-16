@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Badge, Button, Card, PageHeader } from '../components/ui'
+import { CourseRecommend } from '../components/CourseRecommend'
 import { currentTerm, enrolledCount, enrollmentOpen, remainingSeats, studentOfferings } from '../lib/enrollment'
 import { useStore } from '../lib/store'
 import { periodLabel, weekdayLabel } from '../lib/utils'
@@ -12,6 +13,10 @@ export function SelectCoursesPage() {
   const term = currentTerm(db)
   const open = enrollmentOpen(db)
 
+  const handleQuickEnroll = (offeringId: string) => {
+    setHint(enroll(studentId, offeringId, 'self'))
+  }
+
   return (
     <div>
       <PageHeader
@@ -21,6 +26,14 @@ export function SelectCoursesPage() {
         actions={<Badge tone={open ? 'green' : 'warn'}>{open ? '窗口开放' : '窗口关闭'}</Badge>}
       />
       {hint ? <p className="mb-4 text-sm text-warn">{hint}</p> : null}
+
+      {/* 智能推荐模块（低耦合，独立组件） */}
+      <CourseRecommend
+        className="mb-6"
+        limit={3}
+        onEnroll={handleQuickEnroll}
+      />
+
       <div className="grid gap-3">
         {db.offerings.map((offering) => {
           const course = db.courses.find((item) => item.id === offering.courseId)
