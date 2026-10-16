@@ -23,7 +23,8 @@ interface LLMOptions {
   maxTokens?: number
 }
 
-async function chat(messages: ChatMessage[], options: LLMOptions = {}): Promise<string> {
+// 导出 chat 函数供其他模块使用（如 recommend.ts）
+export async function chat(messages: ChatMessage[], options: LLMOptions = {}): Promise<string> {
   if (!apiKey) {
     return '请先配置 API Key（点击设置图标输入）'
   }

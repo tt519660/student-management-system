@@ -23,7 +23,7 @@ import type {
   User,
 } from '../types'
 import { canDrop, canEnroll } from './enrollment'
-import { fetchAllData } from './api'
+import { fetchAllData, loginApi, setToken, clearToken, getToken } from './api'
 import { createSeed } from './seed'
 import { nowIso, uid } from './utils'
 
@@ -50,7 +50,7 @@ interface StoreValue {
   db: Database
   user: User | null
   remoteLoaded: boolean
-  login: (username: string, password: string) => string | null
+  login: (username: string, password: string) => Promise<string | null>
   logout: () => void
   resetDemo: () => void
   reloadRemote: () => Promise<void>
@@ -127,23 +127,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     user,
     remoteLoaded,
     reloadRemote: loadRemoteData,
-    login: (username, password) => {
-      const found = db.users.find(
-        (item) => item.username === username.trim() && item.password === password,
-      )
-      if (!found) return '账号或密码不正确'
-      sessionStorage.setItem(SESSION_KEY, found.id)
-      setUser(found)
-      return null
+    login: async (username, password) => {
+      // 优先使用后端 JWT 认证
+      const result = await loginApi(username, password)
+      if (result.success && result.data) {
+        setToken(result.data.access_token)
+        const { user: loginUser } = result.data
+        // 查找或创建本地用户对象
+        const found = db.users.find((u) => u.username === loginUser.username)
+        if (found) {
+          sessionStorage.setItem(SESSION_KEY, found.id)
+          setUser(found)
+          return null
+        }
+        // 如果本地没有，使用后端返回的用户信息
+        const localUser: User = {
+          id: loginUser.id,
+          username: loginUser.username,
+          displayName: loginUser.displayName,
+          role: loginUser.role as User['role'],
+          password: '',
+          refId: loginUser.refId,
+        }
+        sessionStorage.setItem(SESSION_KEY, localUser.id)
+        setUser(localUser)
+        return null
+      }
+
+      // 后端不可用时，回退到本地认证（演示模式）
+      if (!getToken()) {
+        const found = db.users.find(
+          (item) => item.username === username.trim() && item.password === password,
+        )
+        if (found) {
+          sessionStorage.setItem(SESSION_KEY, found.id)
+          setUser(found)
+          return null
+        }
+      }
+
+      return result.error || '账号或密码不正确'
     },
     logout: () => {
       sessionStorage.removeItem(SESSION_KEY)
+      clearToken()
       setUser(null)
     },
     resetDemo: () => {
       const seed = createSeed()
       persist(seed)
       sessionStorage.removeItem(SESSION_KEY)
+      clearToken()
       setUser(null)
     },
     saveCollege: (item) => {

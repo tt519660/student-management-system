@@ -7,11 +7,18 @@
  * - Props 驱动：通过回调与外部通信，不直接操作外部状态
  */
 
-import { useState } from 'react'
-import { Sparkles, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Sparkles, RefreshCw, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { Badge, Card } from './ui'
-import { getRecommendDetails, type RecommendDetail } from '../lib/recommend'
+import {
+  getRecommendDetails,
+  getRecommendations,
+  getLLMRecommendations,
+  type LLMRecommendResult,
+  type RecommendDetail,
+} from '../lib/recommend'
 import { useStore } from '../lib/store'
+import { getApiKey } from '../lib/llm'
 import { weekdayLabel, periodLabel } from '../lib/utils'
 
 interface CourseRecommendProps {
@@ -21,20 +28,54 @@ interface CourseRecommendProps {
   onEnroll?: (offeringId: string) => void
   /** 自定义类名 */
   className?: string
+  /** 是否启用 LLM 推荐（需要 API Key） */
+  enableLLM?: boolean
 }
 
-export function CourseRecommend({ limit = 3, onEnroll, className = '' }: CourseRecommendProps) {
+export function CourseRecommend({
+  limit = 3,
+  onEnroll,
+  className = '',
+  enableLLM = true,
+}: CourseRecommendProps) {
   const { db, user } = useStore()
   const [expanded, setExpanded] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [llmData, setLlmData] = useState<LLMRecommendResult | null>(null)
+  const [llmLoading, setLlmLoading] = useState(false)
+  const [llmError, setLlmError] = useState<string | null>(null)
 
   const student = db.students.find((s) => s.id === user?.refId)
+
+  // LLM 推荐（必须在条件返回之前调用）
+  useEffect(() => {
+    if (!enableLLM || !student || !getApiKey()) {
+      setLlmData(null)
+      return
+    }
+
+    const loadLLM = async () => {
+      setLlmLoading(true)
+      setLlmError(null)
+      const ruleBasedResult = getRecommendations(db, student)
+      const { result, error } = await getLLMRecommendations(db, student, ruleBasedResult)
+      if (result) {
+        setLlmData(result)
+      } else if (error) {
+        setLlmError(error)
+      }
+      setLlmLoading(false)
+    }
+
+    loadLLM()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey, enableLLM, student])
+
   if (!student) return null
 
-  const recommendations = getRecommendDetails(db, student, limit)
-  const warnings = getRecommendDetails(db, student, 100)
-    .filter((r) => r.reasons.includes('low-seats'))
-    .map((r) => `${r.courseName} ${r.section} 余量不足`)
+  const ruleBasedResult = getRecommendations(db, student)
+  const recommendations = getRecommendDetails(db, student, limit, llmData)
+  const warnings = ruleBasedResult.warnings
 
   if (recommendations.length === 0) {
     return (
@@ -57,8 +98,18 @@ export function CourseRecommend({ limit = 3, onEnroll, className = '' }: CourseR
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-accent" />
           <div>
-            <div className="text-sm font-medium">智能推荐</div>
-            <div className="text-xs text-muted">基于专业匹配、时间冲突与容量分析</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">智能推荐</span>
+              {llmLoading && (
+                <Loader2 size={12} className="animate-spin text-muted" />
+              )}
+              {llmData && !llmLoading && (
+                <Badge tone="green">AI</Badge>
+              )}
+            </div>
+            <div className="text-xs text-muted">
+              {llmData ? '基于 AI 分析生成' : '基于专业匹配、时间冲突与容量分析'}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -85,15 +136,26 @@ export function CourseRecommend({ limit = 3, onEnroll, className = '' }: CourseR
         </div>
       )}
 
+      {/* LLM 错误提示 */}
+      {expanded && llmError && (
+        <div className="mx-5 mb-3 rounded-xl bg-red-50 px-4 py-2.5">
+          <div className="text-xs text-red-600">{llmError}</div>
+        </div>
+      )}
+
+      {/* LLM 建议 */}
+      {expanded && llmData?.suggestions && (
+        <div className="mx-5 mb-3 rounded-xl bg-accent-soft px-4 py-2.5">
+          <div className="text-xs font-medium text-accent">💡 AI 建议</div>
+          <div className="mt-1 text-xs text-muted">{llmData.suggestions}</div>
+        </div>
+      )}
+
       {/* 推荐列表 */}
       {expanded && (
         <div key={refreshKey} className="space-y-3 px-5 pb-5">
           {recommendations.map((item) => (
-            <RecommendCard
-              key={item.offeringId}
-              item={item}
-              onEnroll={onEnroll}
-            />
+            <RecommendCard key={item.offeringId} item={item} onEnroll={onEnroll} />
           ))}
         </div>
       )}
@@ -126,6 +188,9 @@ function RecommendCard({
           {weekdayLabel(item.weekday)} {periodLabel(item.startPeriod, item.endPeriod)} ·{' '}
           {item.location}
         </div>
+        {item.llmComment && (
+          <div className="mt-1 text-xs text-accent">✨ {item.llmComment}</div>
+        )}
         <div className="mt-1 flex flex-wrap gap-1.5">
           {item.reasons
             .filter((r) => r !== 'not-selected')

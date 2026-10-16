@@ -15,8 +15,18 @@ export function LoginPage() {
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState(DEMO_PASSWORD)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   if (user) return <Navigate to="/" replace />
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    const err = await login(username, password)
+    if (err) setError(err)
+    setLoading(false)
+  }
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
@@ -34,13 +44,7 @@ export function LoginPage() {
       </section>
 
       <section className="grid place-items-center px-6 py-16">
-        <form
-          className="w-full max-w-sm"
-          onSubmit={(event) => {
-            event.preventDefault()
-            setError(login(username, password))
-          }}
-        >
+        <form className="w-full max-w-sm" onSubmit={handleSubmit}>
           <p className="text-[11px] tracking-[0.24em] text-muted uppercase">Sign in</p>
           <h2 className="mt-2 font-display text-4xl">登录学苑</h2>
           <div className="mt-8 grid gap-4">
@@ -51,8 +55,8 @@ export function LoginPage() {
               <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
             </Field>
             {error ? <p className="text-sm text-warn">{error}</p> : null}
-            <Button type="submit" className="mt-2 w-full">
-              进入系统
+            <Button type="submit" className="mt-2 w-full" disabled={loading}>
+              {loading ? '登录中...' : '进入系统'}
             </Button>
           </div>
           <div className="mt-8">
