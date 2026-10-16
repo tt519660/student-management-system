@@ -1,6 +1,99 @@
 # 学苑 · 高校学生管理系统
 
-基于 Vite、React 和 TypeScript 构建的高校学生管理系统前端项目，覆盖学籍管理、组织管理、课程管理、选课、课表与数据报表等场景。
+基于 Vite、React 和 TypeScript 构建的高校学生管理系统，采用前后端分离架构，覆盖学籍管理、组织管理、课程管理、选课、课表与数据报表等场景。
+
+## 系统架构
+
+```
+                        ┌─────────────────────────────────────┐
+                        │           客户端 (React SPA)         │
+                        └─────────────────┬───────────────────┘
+                                          │ HTTPS
+                        ┌─────────────────▼───────────────────┐
+                        │      负载均衡 (Nginx / SLB)          │
+                        │      限流 + 灰度 + 静态资源加速        │
+                        └─────────────────┬───────────────────┘
+                                          │
+            ┌─────────────────────────────┼─────────────────────────────┐
+            │                             │                             │
+  ┌─────────▼──────────┐      ┌──────────▼─────────┐      ┌───────────▼─────────┐
+  │   FastAPI 服务      │      │   FastAPI 服务      │      │   FastAPI 服务       │
+  │   Auth + User       │      │   Core + 选课       │      │   Report + 日志      │
+  └─────────┬──────────┘      └──────────┬─────────┘      └───────────┬─────────┘
+            │                             │                             │
+            └─────────────────────────────┼─────────────────────────────┘
+                                          │
+                        ┌─────────────────▼───────────────────┐
+                        │         Celery + Redis (任务队列)     │
+                        │         选课异步处理 + 削峰填谷         │
+                        └─────────────────┬───────────────────┘
+                                          │
+            ┌─────────────────────────────┼─────────────────────────────┐
+            │                             │                             │
+  ┌─────────▼──────────┐      ┌──────────▼─────────┐      ┌───────────▼─────────┐
+  │   PostgreSQL        │      │   Redis Cluster     │      │   Elasticsearch     │
+  │   主从读写分离        │      │   缓存+锁+队列       │      │   日志+全文检索       │
+  └────────────────────┘      └────────────────────┘      └─────────────────────┘
+```
+
+### 技术选型
+
+| 层级 | 技术 | 说明 |
+|------|------|------|
+| 前端 | React 19 + TypeScript + Vite | SPA 单页应用 |
+| 后端 | Python 3.12 + FastAPI | 异步高性能框架 |
+| 数据库 | PostgreSQL 16 | 主从读写分离 |
+| 缓存 | Redis 7 | 分布式锁 + 名额缓存 |
+| 任务队列 | Celery + Redis | 选课削峰填谷 |
+| 部署 | Docker + K8s | 弹性伸缩 |
+
+### 高可用设计（选课高峰）
+
+- **分布式锁**：Redis SET NX 防止同一课程超卖
+- **三重校验**：Redis DECR → MySQL 唯一索引 → 乐观锁
+- **限流熔断**：单用户 1次/秒，全局 10000 QPS
+- **读写分离**：查询走从库，写入走主库
+- **弹性伸缩**：HPA 根据 CPU 自动扩容（4→32 pods）
+
+### 选课核心流程
+
+```
+学生点击选课
+     │
+     ▼
+┌─────────────────────────────┐
+│ 1. JWT 认证 + 限流           │  网关校验身份，单用户 1次/秒
+└────────────┬────────────────┘
+             ▼
+┌─────────────────────────────┐
+│ 2. 获取分布式锁              │  Redis SET NX 锁 offering_id
+│    (SET NX EX 3)            │  同一教学班串行处理
+└────────────┬────────────────┘
+             ▼
+┌─────────────────────────────┐
+│ 3. Redis 缓存校验            │
+│    - 已选？→ 拒绝            │  SISMEMBER 学生已选集合
+│    - 时间冲突？→ 拒绝         │  内存计算冲突检测
+│    - 名额不足？→ 拒绝         │  DECR 原子扣减名额
+└────────────┬────────────────┘
+             ▼
+┌─────────────────────────────┐
+│ 4. 写入 PostgreSQL           │  INSERT ... ON CONFLICT
+│    唯一索引兜底防重复          │  DO NOTHING
+└────────────┬────────────────┘
+             ▼
+┌─────────────────────────────┐
+│ 5. 更新缓存 + 释放锁 + 返回   │
+└─────────────────────────────┘
+```
+
+**防超卖三重保障：**
+
+| 顺序 | 机制 | 作用 |
+|------|------|------|
+| 第一道 | Redis `DECR` 原子操作 | 高并发下快速拦截 |
+| 第二道 | MySQL 唯一索引 `uk_student_offering` | 防止重复选课 |
+| 第三道 | 乐观锁 `WHERE enrolled_count < capacity` | 最终一致性兜底 |
 
 ## 功能列表
 
@@ -40,6 +133,8 @@ npx remotion render
 
 ## 快速启动
 
+### 前端
+
 ```bash
 git clone https://github.com/tt519660/student-management-system.git
 cd student-management-system
@@ -49,14 +144,26 @@ npm run dev
 
 启动后，打开终端中显示的本地地址，通常为 `http://localhost:5173`。
 
-生产构建与预览：
+### 后端（可选）
+
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+```
+
+后端运行在 `http://127.0.0.1:8000`，API 文档见 `http://127.0.0.1:8000/docs`。
+
+> 后端未启动时，前端自动使用本地 localStorage 数据，不影响使用。
+
+### 生产构建
 
 ```bash
 npm run build
 npm run preview
 ```
 
-代码检查：
+### 代码检查
 
 ```bash
 npm run lint
@@ -96,33 +203,40 @@ export function UserGreeting() {
 
 ```text
 student-management-system/
-├── docs/                 # 项目文档
-├── public/               # 静态资源
-├── promo-video/          # 项目介绍动画（Remotion）
+├── backend/                # Python 后端（FastAPI）
+│   ├── main.py             # 后端入口
+│   ├── test_data.js        # 测试数据
+│   └── requirements.txt    # Python 依赖
+├── docs/                   # 项目文档
+├── public/                 # 静态资源
+├── promo-video/            # 项目介绍动画（Remotion）
 ├── src/
-│   ├── components/       # 通用组件与布局
-│   ├── lib/              # 状态管理、种子数据与业务逻辑
-│   ├── pages/            # 页面组件
-│   │   ├── Dashboard.tsx # 总览
-│   │   ├── Login.tsx     # 登录
+│   ├── components/         # 通用组件与布局
+│   ├── lib/                # 状态管理、API 服务与业务逻辑
+│   │   ├── api.ts          # 后端 API 调用
+│   │   ├── store.tsx       # 全局状态
+│   │   ├── enrollment.ts   # 选课规则
+│   │   ├── seed.ts         # 本地种子数据
+│   │   └── utils.ts        # 工具函数
+│   ├── pages/              # 页面组件
+│   │   ├── Dashboard.tsx   # 总览
+│   │   ├── Login.tsx       # 登录
 │   │   ├── Organization.tsx # 组织架构
-│   │   ├── Students.tsx  # 学生学籍
-│   │   ├── Teachers.tsx  # 教师档案
-│   │   ├── Courses.tsx   # 课程库
-│   │   ├── Terms.tsx     # 学期管理
-│   │   ├── Offerings.tsx # 开课管理
+│   │   ├── Students.tsx    # 学生学籍
+│   │   ├── Teachers.tsx    # 教师档案
+│   │   ├── Courses.tsx     # 课程库
+│   │   ├── Terms.tsx       # 学期管理
+│   │   ├── Offerings.tsx   # 开课管理
 │   │   ├── SelectCourses.tsx # 选课
-│   │   ├── Schedule.tsx  # 课表
-│   │   ├── Reports.tsx   # 统计报表
-│   │   └── Profile.tsx   # 我的档案
-│   ├── App.tsx           # 应用路由与页面入口
-│   ├── App.css           # 应用样式
-│   ├── index.css         # 全局样式
-│   ├── types.ts          # TypeScript 类型定义
-│   └── main.tsx          # 应用启动入口
+│   │   ├── Schedule.tsx    # 课表
+│   │   ├── Reports.tsx     # 统计报表
+│   │   ├── Logs.tsx        # 操作日志
+│   │   └── Profile.tsx     # 我的档案
+│   ├── App.tsx             # 应用路由与页面入口
+│   ├── types.ts            # TypeScript 类型定义
+│   └── main.tsx            # 应用启动入口
 ├── index.html
 ├── package.json
-├── package-lock.json
 ├── tsconfig.json
 └── vite.config.ts
 ```
