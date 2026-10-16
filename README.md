@@ -15,6 +15,22 @@
 - 数据看板与报表展示
 - 本地演示数据初始化与重置
 
+## 项目介绍动画
+
+`promo-video/` 是基于 [Remotion](https://remotion.dev)（React 编程式视频）制作的项目介绍展示动画，规格为 1920×1080、30fps、约 19 秒，包含开场、技术栈、核心功能、角色介绍与结尾 5 个场景。
+
+```bash
+cd promo-video
+npm install
+npm run dev    # 启动 Remotion Studio 预览
+```
+
+启动后在浏览器打开 `http://localhost:3000/StudentIntro` 即可交互式预览；每个场景也在 Studio 的 Scenes 文件夹中单独注册，可独立编辑。导出 MP4：
+
+```bash
+npx remotion render
+```
+
 ## 前置依赖
 
 - Node.js 20 或更高版本
@@ -80,6 +96,7 @@ export function UserGreeting() {
 student-management-system/
 ├── docs/                 # 项目文档
 ├── public/               # 静态资源
+├── promo-video/          # 项目介绍动画（Remotion）
 ├── src/
 │   ├── components/       # 通用组件与布局
 │   ├── lib/              # 状态管理、种子数据与业务逻辑
